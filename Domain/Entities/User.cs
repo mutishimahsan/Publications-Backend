@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Domain.Enums;
+using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,7 @@ namespace Domain.Entities
         public UserType UserType { get; set; }
         public DateTime? LastLogin { get; set; }
         public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();

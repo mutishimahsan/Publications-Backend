@@ -1,9 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Application.Interfaces;
+using Application.Services;
+using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace Application
 {
@@ -11,7 +9,19 @@ namespace Application
     {
         public static IServiceCollection AddApplicationDI(this IServiceCollection services)
         {
-            // Add application services here
+            // AutoMapper - Method 1: Scan current assembly
+            services.AddAutoMapper(cfg =>
+            {
+                cfg.AddMaps(Assembly.GetExecutingAssembly());
+            });
+
+            // OR Method 2: Specify the profile class
+            // services.AddAutoMapper(typeof(AutoMapperProfile));
+
+            // Application Services
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IProductService, ProductService>();
+
             return services;
         }
     }

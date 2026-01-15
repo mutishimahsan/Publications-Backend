@@ -1,5 +1,6 @@
 ﻿using Application.DTOs;
 using Application.Interfaces;
+using AutoMapper;
 using Domain.Common;
 using Domain.Entities;
 using Domain.Enums;
