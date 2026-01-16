@@ -32,39 +32,9 @@ namespace Publications_Backend
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
-                app.MapScalarApiReference();
-
-                // Apply migrations and seed database in development
-                using (var scope = app.Services.CreateScope())
-                {
-                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                    // Apply pending migrations
-                    await context.Database.MigrateAsync();
-
-                    // Seed database
-                    var seedService = scope.ServiceProvider.GetRequiredService<SeedService>();
-                    await seedService.SeedAsync();
-                }
+                app.MapScalarApiReference(); 
             }
-            else
-            {
-                // For production, apply migrations on startup
-                using (var scope = app.Services.CreateScope())
-                {
-                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                    // Apply pending migrations
-                    await context.Database.MigrateAsync();
-
-                    // Seed only if database is empty (first startup)
-                    if (!await context.Users.AnyAsync())
-                    {
-                        var seedService = scope.ServiceProvider.GetRequiredService<SeedService>();
-                        await seedService.SeedAsync();
-                    }
-                }
-            }
+            
 
             app.UseHttpsRedirection();
 
@@ -85,15 +55,19 @@ namespace Publications_Backend
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
+                var logger = services.GetRequiredService<ILogger<Program>>();
+
                 try
                 {
                     var context = services.GetRequiredService<AppDbContext>();
-                    context.Database.Migrate(); // Apply migrations automatically
+                    await context.Database.MigrateAsync();
+
+                    var seedService = services.GetRequiredService<SeedService>();
+                    await seedService.SeedAsync();
                 }
                 catch (Exception ex)
                 {
-                    var logger = services.GetRequiredService<ILogger<Program>>();
-                    logger.LogError(ex, "An error occurred while migrating the database.");
+                    logger.LogError(ex, "Database migration / seeding failed");
                 }
             }
 

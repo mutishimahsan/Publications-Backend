@@ -78,38 +78,86 @@ namespace Infrastructure.Services
 
         private async Task SeedAdminUserAsync()
         {
-            var adminEmail = "admin@mentisera.pk";
-            var adminUser = await _userManager.FindByEmailAsync(adminEmail);
+            const string adminEmail = "admin@mentisera.pk";
+            const string adminPassword = "Admin@123";
+            const string adminRole = "SuperAdmin";
+            const string systemUser = "SYSTEM";
 
-            if (adminUser == null)
+            _logger.LogInformation("🔹 Seeding admin user...");
+
+            // Ensure role exists
+            if (!await _roleManager.RoleExistsAsync(adminRole))
             {
-                adminUser = new User
-                {
-                    Id = Guid.NewGuid(),
-                    UserName = adminEmail,
-                    Email = adminEmail,
-                    FullName = "System Administrator",
-                    UserType = UserType.SuperAdmin,
-                    IsActive = true,
-                    EmailConfirmed = true,
-                    PhoneNumber = "+923001234567",
-                    CreatedAt = DateTime.UtcNow
-                };
+                var roleResult = await _roleManager.CreateAsync(new IdentityRole<Guid>(adminRole));
 
-                var result = await _userManager.CreateAsync(adminUser, "Admin@123");
+                if (!roleResult.Succeeded)
+                {
+                    foreach (var error in roleResult.Errors)
+                        _logger.LogError("❌ Role creation failed: {Desc}", error.Description);
 
-                if (result.Succeeded)
-                {
-                    await _userManager.AddToRoleAsync(adminUser, "SuperAdmin");
-                    _logger.LogInformation("Created admin user: {Email}", adminEmail);
-                }
-                else
-                {
-                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                    _logger.LogError("Failed to create admin user: {Errors}", errors);
+                    return;
                 }
             }
+
+            // Ignore global filters (IsDeleted, etc.)
+            var adminUser = await _userManager.Users
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.NormalizedEmail == adminEmail.ToUpper());
+
+            if (adminUser != null)
+            {
+                _logger.LogInformation("✅ Admin user already exists");
+
+                if (!await _userManager.IsInRoleAsync(adminUser, adminRole))
+                    await _userManager.AddToRoleAsync(adminUser, adminRole);
+
+                adminUser.IsActive = true;
+                adminUser.EmailConfirmed = true;
+                adminUser.UpdatedAt = DateTime.UtcNow;
+                adminUser.UpdatedBy = systemUser;
+
+                await _userManager.UpdateAsync(adminUser);
+                return;
+            }
+
+            // Create admin user
+            adminUser = new User
+            {
+                Id = Guid.NewGuid(),
+                UserName = adminEmail,
+                NormalizedUserName = adminEmail.ToUpper(),
+                Email = adminEmail,
+                NormalizedEmail = adminEmail.ToUpper(),
+                FullName = "System Administrator",
+                UserType = UserType.SuperAdmin,
+                IsActive = true,
+                EmailConfirmed = true,
+                PhoneNumber = "+923001234567",
+
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = systemUser,      // ✅ FIXED
+                UpdatedAt = DateTime.UtcNow,
+                UpdatedBy = systemUser,      // ✅ FIXED
+
+                SecurityStamp = Guid.NewGuid().ToString()
+            };
+
+            var createResult = await _userManager.CreateAsync(adminUser, adminPassword);
+
+            if (!createResult.Succeeded)
+            {
+                foreach (var error in createResult.Errors)
+                    _logger.LogError("❌ Admin user creation failed: {Desc}", error.Description);
+
+                return;
+            }
+
+            await _userManager.AddToRoleAsync(adminUser, adminRole);
+
+            _logger.LogInformation("🎉 Admin user seeded successfully ({Email})", adminEmail);
         }
+
+
 
         private async Task SeedCategoriesAsync()
         {

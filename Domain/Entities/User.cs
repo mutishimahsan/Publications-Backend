@@ -16,10 +16,14 @@ namespace Domain.Entities
         public DateTime? LastLogin { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation properties
         public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
         public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+        public bool IsDeleted { get; set; }
+        public string UpdatedBy { get; set; } = "SYSTEM";
+        public string CreatedBy { get; set; } = "SYSTEM";
     }
 }

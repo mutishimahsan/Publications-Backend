@@ -1,7 +1,9 @@
 ﻿using Application.Common;
 using Application.Interfaces;
 using Domain.Common;
+using Domain.Entities;
 using Infrastructure.Data;
+using Infrastructure.Data.Interceptors;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,13 +26,21 @@ namespace Infrastructure
         public static IServiceCollection AddInfrastructureDI(this IServiceCollection services, IConfiguration configuration)
         {
             // Database Context
-            services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+            services.AddDbContext<AppDbContext>((sp, options) =>
+            {
+                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
+                options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
+            });
 
             // Identity
-            services.AddIdentity<Domain.Entities.User, IdentityRole<Guid>>()
-                .AddEntityFrameworkStores<AppDbContext>()
-                .AddDefaultTokenProviders();
+            services.AddIdentity<User, IdentityRole<Guid>>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddEntityFrameworkStores<AppDbContext>()
+            .AddRoleManager<RoleManager<IdentityRole<Guid>>>()
+            .AddSignInManager<SignInManager<User>>()
+            .AddDefaultTokenProviders();
 
             // Configure Identity options
             services.Configure<IdentityOptions>(options =>
@@ -123,6 +133,9 @@ namespace Infrastructure
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<SeedService>();
+
+            services.AddScoped<AuditInterceptor>();
+            services.AddScoped<IAuditService, AuditService>();
 
             // Email Service (if implemented)
             //services.AddScoped<IEmailService, EmailService>();
