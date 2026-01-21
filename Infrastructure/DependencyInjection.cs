@@ -32,6 +32,15 @@ namespace Infrastructure
                 options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
             });
 
+            // Distributed Cache (for cart storage)
+            services.AddDistributedMemoryCache(); // For development
+            // For production, use Redis:
+            // services.AddStackExchangeRedisCache(options =>
+            // {
+            //     options.Configuration = configuration.GetConnectionString("Redis");
+            //     options.InstanceName = "MENTISERA_";
+            // });
+
             // Identity
             services.AddIdentity<User, IdentityRole<Guid>>(options =>
             {

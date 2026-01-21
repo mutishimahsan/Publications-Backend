@@ -33,6 +33,9 @@ namespace Application.DTOs
 
         public bool ContainsDigitalProducts => Items.Any(i => i.IsDigital);
         public bool ContainsPhysicalProducts => Items.Any(i => !i.IsDigital);
+
+        public DateTime CreatedAt { get; internal set; }
+        public DateTime UpdatedAt { get; internal set; }
     }
 
     public class AddToCartDto

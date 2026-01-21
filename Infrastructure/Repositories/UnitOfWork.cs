@@ -2,12 +2,14 @@
 using Infrastructure.Data;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Infrastructure.Repositories
 {
     public class UnitOfWork : IUnitOfWork
     {
         private readonly AppDbContext _context;
+        private IDbContextTransaction? _currentTransaction;
 
         public UnitOfWork(AppDbContext context)
         {
@@ -41,9 +43,10 @@ namespace Infrastructure.Repositories
             return await _context.SaveChangesAsync();
         }
 
-        public async Task BeginTransactionAsync()
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
         {
-            await _context.Database.BeginTransactionAsync();
+            _currentTransaction = await _context.Database.BeginTransactionAsync();
+            return _currentTransaction;
         }
 
         public async Task CommitTransactionAsync()
