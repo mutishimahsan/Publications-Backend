@@ -43,5 +43,6 @@ namespace Application.DTOs
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public string? Format { get; internal set; }
     }
 }

@@ -1,4 +1,5 @@
 
+using Application.Services;
 using Infrastructure.Data;
 using Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,30 @@ namespace Publications_Backend
 
 
             app.MapControllers();
+
+            // Webhook endpoints need raw body access
+            app.MapPost("/api/webhook/stripe", async (HttpContext context) =>
+            {
+                using var scope = app.Services.CreateScope();
+                var paymentService = scope.ServiceProvider.GetRequiredService<IPaymentService>();
+                var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+                var json = await new StreamReader(context.Request.Body).ReadToEndAsync();
+                var signature = context.Request.Headers["Stripe-Signature"].ToString();
+
+                var result = await paymentService.HandleStripeWebhookAsync(json, signature);
+
+                if (result)
+                {
+                    context.Response.StatusCode = 200;
+                    await context.Response.WriteAsync("Webhook processed successfully");
+                }
+                else
+                {
+                    context.Response.StatusCode = 400;
+                    await context.Response.WriteAsync("Webhook processing failed");
+                }
+            });
 
             // Ensure database is created and migrations applied
             using (var scope = app.Services.CreateScope())

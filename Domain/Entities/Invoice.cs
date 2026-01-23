@@ -34,5 +34,6 @@ namespace Domain.Entities
         // Audit
         public int DownloadCount { get; set; } = 0;
         public DateTime? LastDownloadedAt { get; set; }
+        public bool IsActive { get; set; }
     }
 }
