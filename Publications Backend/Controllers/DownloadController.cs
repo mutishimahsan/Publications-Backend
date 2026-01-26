@@ -1,4 +1,6 @@
 ﻿using Application.Interfaces;
+using Application.Services;
+using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -132,20 +134,59 @@ namespace Publications_Backend.Controllers
             }
         }
 
+        [HttpGet("digital/{token}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DownloadDigitalFile(string token)
+        {
+            try
+            {
+                var result = await _digitalProductService.ProcessDownloadAsync(token);
+
+                // Set download headers
+                Response.Headers.Add("X-Downloads-Remaining",
+                    (result.DigitalAccess.MaxDownloads - result.DigitalAccess.DownloadCount).ToString());
+                Response.Headers.Add("X-Product-Name", result.DigitalAccess.ProductTitle);
+
+                return File(result.FileStream, result.MimeType, result.FileName);
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ValidationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing digital download with token {Token}", token);
+                return StatusCode(500, new { message = "An error occurred while downloading the file" });
+            }
+        }
+
+
         [HttpGet("digital-product/{orderItemId}")]
         [Authorize]
         public async Task<IActionResult> DownloadDigitalProduct(Guid orderItemId)
         {
             try
             {
-                // This would be implemented when we create the DigitalProductService
-                // For now, return not implemented
-                return StatusCode(501, new { message = "Digital product downloads will be implemented in Day 11" });
+                var currentUserId = GetCurrentUserId();
+                var downloadLink = await _digitalProductService.GenerateDownloadLinkAsync(orderItemId, currentUserId);
+                return Ok(downloadLink);
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ValidationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error downloading digital product for order item {OrderItemId}", orderItemId);
-                return StatusCode(500, new { message = "Error downloading digital product" });
+                _logger.LogError(ex, "Error generating download link for order item {OrderItemId}", orderItemId);
+                return StatusCode(500, new { message = "An error occurred while generating download link" });
             }
         }
 
@@ -190,5 +231,7 @@ namespace Publications_Backend.Controllers
             }
             return Guid.Empty;
         }
+
+
     }
 }

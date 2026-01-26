@@ -35,10 +35,42 @@ namespace Infrastructure.Data
         public DbSet<Blog> Blogs { get; set; } = null!;
         public DbSet<BlogCategory> BlogCategories { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<DigitalAccess> DigitalAccesses { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // Configure DigitalAccess
+            builder.Entity<DigitalAccess>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.HasOne(e => e.OrderItem)
+                    .WithMany()
+                    .HasForeignKey(e => e.OrderItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Product)
+                    .WithMany(p => p.DigitalAccesses)
+                    .HasForeignKey(e => e.ProductId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Customer)
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.Property(e => e.CurrentToken)
+                    .HasMaxLength(100);
+
+                entity.HasIndex(e => e.CurrentToken)
+                    .IsUnique()
+                    .HasFilter("[CurrentToken] IS NOT NULL");
+
+                entity.HasIndex(e => new { e.OrderItemId, e.CustomerId })
+                    .IsUnique();
+            });
 
             // Configure User
             builder.Entity<User>(entity =>

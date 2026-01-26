@@ -1,4 +1,5 @@
 ﻿using Application.Interfaces;
+using Domain.Entities;
 using Infrastructure.Data;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,7 @@ namespace Infrastructure.Repositories
             Authors = new AuthorRepository(_context);
             Blogs = new BlogRepository(_context);
             Addresses = new AddressRepository(_context);
+            DigitalAccesses = new DigitalAccessRepository(_context);
         }
 
         // Interface properties
@@ -37,6 +39,7 @@ namespace Infrastructure.Repositories
         public IAuthorRepository Authors { get; }
         public IBlogRepository Blogs { get; }
         public IAddressRepository Addresses { get; }
+        public IDigitalAccessRepository DigitalAccesses { get; }
 
         public async Task<int> SaveChangesAsync()
         {

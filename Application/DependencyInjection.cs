@@ -24,6 +24,7 @@ namespace Application
             services.AddScoped<ICartService, CartService>();
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IPaymentService, PaymentService>();
+            services.AddScoped<IDigitalProductService, DigitalProductService>();
 
             return services;
         }

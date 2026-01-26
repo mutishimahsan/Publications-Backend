@@ -146,6 +146,8 @@ namespace Infrastructure
             services.AddScoped<AuditInterceptor>();
             services.AddScoped<IAuditService, AuditService>();
 
+            services.AddScoped<IDigitalAccessRepository, DigitalAccessRepository>();
+
             // Email Service (if implemented)
             //services.AddScoped<IEmailService, EmailService>();
 

@@ -18,6 +18,7 @@ namespace Application.Interfaces
         IAuthorRepository Authors { get; }
         IBlogRepository Blogs { get; }
         IAddressRepository Addresses { get; }
+        IDigitalAccessRepository DigitalAccesses { get; }
 
         Task<int> SaveChangesAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
