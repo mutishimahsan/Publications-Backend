@@ -192,4 +192,3 @@ namespace Publications_Backend.Controllers
         public int Quantity { get; set; }
     }
 }
-}

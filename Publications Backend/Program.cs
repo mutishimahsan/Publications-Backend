@@ -27,6 +27,17 @@ namespace Publications_Backend
                 serverOptions.Limits.MaxRequestBodySize = 52428800; // 50MB for file uploads
             });
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy
+                        .AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
@@ -38,6 +49,8 @@ namespace Publications_Backend
             
 
             app.UseHttpsRedirection();
+
+            app.UseRouting();
 
             // Use CORS
             app.UseCors("AllowAll");

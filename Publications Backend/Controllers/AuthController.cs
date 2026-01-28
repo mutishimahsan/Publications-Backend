@@ -1,8 +1,12 @@
 ﻿using Application.DTOs;
 using Application.Services;
+using Domain.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Publications_Backend.Controllers
 {
@@ -11,10 +15,12 @@ namespace Publications_Backend.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IUserService userService)
+        public AuthController(IUserService userService, ILogger<AuthController> logger)
         {
             _userService = userService;
+            _logger = logger;
         }
 
         [HttpPost("register")]
@@ -37,7 +43,7 @@ namespace Publications_Backend.Controllers
             try
             {
                 var result = await _userService.LoginAsync(dto);
-                return Ok(result);
+                return Content(result.Token, "text/plain");
             }
             catch (Exception ex)
             {
@@ -45,37 +51,72 @@ namespace Publications_Backend.Controllers
             }
         }
 
-        [HttpGet("profile")]
+        [HttpGet("get-profile")]
         [Authorize]
         public async Task<IActionResult> GetProfile()
         {
             try
             {
-                var userId = User.FindFirst("userId")?.Value;
-                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+                _logger.LogInformation("GetProfile endpoint called");
+
+                // Try multiple claim types to be safe
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
+                                ?? User.FindFirst("userId")
+                                ?? User.FindFirst(JwtRegisteredClaimNames.Sub);
+
+                _logger.LogInformation($"Found user ID claim: {userIdClaim?.Type} = {userIdClaim?.Value}");
+
+                if (userIdClaim == null || string.IsNullOrEmpty(userIdClaim.Value))
                 {
-                    return Unauthorized();
+                    _logger.LogWarning("No valid user ID claim found in token");
+                    return Unauthorized(new { message = "Invalid token: No user identifier found" });
                 }
 
-                var profile = await _userService.GetProfileAsync(userGuid);
-                return Ok(profile);
+                if (!Guid.TryParse(userIdClaim.Value, out var userGuid))
+                {
+                    _logger.LogWarning($"Invalid user ID format in claim: {userIdClaim.Value}");
+                    return Unauthorized(new { message = "Invalid user identifier format" });
+                }
+
+                _logger.LogInformation($"Getting profile for user ID: {userGuid}");
+
+                try
+                {
+                    var profile = await _userService.GetProfileAsync(userGuid);
+                    _logger.LogInformation($"Successfully retrieved profile for user: {userGuid}");
+                    return Ok(profile);
+                }
+                catch (NotFoundException ex)
+                {
+                    _logger.LogWarning($"Profile not found for user ID: {userGuid}");
+                    return NotFound(new { message = ex.Message });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error getting profile for user ID: {userGuid}");
+                    return StatusCode(500, new { message = "An error occurred while retrieving profile" });
+                }
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = ex.Message });
+                _logger.LogError(ex, "Unexpected error in GetProfile endpoint");
+                return StatusCode(500, new { message = "An unexpected error occurred" });
             }
         }
 
-        [HttpPut("profile")]
+        [HttpPut("update-profile")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto dto)
         {
             try
             {
-                var userId = User.FindFirst("userId")?.Value;
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                             ?? User.FindFirstValue("userId")
+                             ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
                 if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
                 {
-                    return Unauthorized();
+                    return Unauthorized(new { message = "Invalid token" });
                 }
 
                 var profile = await _userService.UpdateProfileAsync(userGuid, dto);

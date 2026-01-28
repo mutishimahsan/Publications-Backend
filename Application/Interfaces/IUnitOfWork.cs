@@ -17,6 +17,9 @@ namespace Application.Interfaces
         IInvoiceRepository Invoices { get; }
         IAuthorRepository Authors { get; }
         IBlogRepository Blogs { get; }
+        IBlogCategoryRepository BlogCategories { get; }
+        IBlogTagRepository BlogTags { get; }
+        IBlogCommentRepository BlogComments { get; }
         IAddressRepository Addresses { get; }
         IDigitalAccessRepository DigitalAccesses { get; }
 

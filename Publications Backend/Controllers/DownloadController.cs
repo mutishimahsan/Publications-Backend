@@ -13,6 +13,7 @@ namespace Publications_Backend.Controllers
     [ApiController]
     public class DownloadController : ControllerBase
     {
+        private readonly IDigitalProductService _digitalProductService;
         private readonly IFileStorageService _fileStorageService;
         private readonly IInvoiceService _invoiceService;
         private readonly IConfiguration _configuration;

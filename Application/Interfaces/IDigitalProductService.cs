@@ -31,13 +31,4 @@ namespace Application.Interfaces
         Task<bool> CleanupExpiredAccessAsync();
         Task<DigitalAccessStatsDto> GetDigitalAccessStatsAsync();
     }
-
-    public class FileDownloadResult
-    {
-        public Stream FileStream { get; set; } = null!;
-        public string FileName { get; set; } = string.Empty;
-        public string MimeType { get; set; } = string.Empty;
-        public long FileSize { get; set; }
-        public DigitalAccessDto DigitalAccess { get; set; } = null!;
-    }
 }

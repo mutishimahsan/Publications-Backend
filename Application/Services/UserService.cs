@@ -5,6 +5,7 @@ using Domain.Common;
 using Domain.Entities;
 using Domain.Enums;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,10 +17,16 @@ namespace Application.Services
     public interface IUserService
     {
         Task<AuthResponseDto> RegisterAsync(RegisterRequestDto dto);
-        Task<AuthResponseDto> LoginAsync(LoginRequestDto dto);
+        Task<LoginResponseDto> LoginAsync(LoginRequestDto dto);
         Task<UserDto> GetProfileAsync(Guid userId);
         Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileDto dto);
         Task<bool> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword);
+    }
+
+    public class LoginResponseDto
+    {
+        public string Token { get; set; } = string.Empty;
+        public DateTime ExpiresAt { get; set; }
     }
 
     public class UserService : IUserService
@@ -29,19 +36,22 @@ namespace Application.Services
         private readonly IJwtService _jwtService;
         private readonly IMapper _mapper;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<UserService> _logger;
 
         public UserService(
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             IJwtService jwtService,
             IMapper mapper,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ILogger<UserService> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _jwtService = jwtService;
             _mapper = mapper;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto dto)
@@ -89,7 +99,7 @@ namespace Application.Services
             };
         }
 
-        public async Task<AuthResponseDto> LoginAsync(LoginRequestDto dto)
+        public async Task<LoginResponseDto> LoginAsync(LoginRequestDto dto)
         {
             var user = await _userManager.FindByEmailAsync(dto.Email);
 
@@ -116,17 +126,29 @@ namespace Application.Services
             // Get user with roles
             var userDto = await GetUserDtoAsync(user.Id);
 
-            return new AuthResponseDto
+            return new LoginResponseDto
             {
                 Token = token,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(60),
-                User = userDto
+                ExpiresAt = DateTime.UtcNow.AddMinutes(60)
             };
         }
 
         public async Task<UserDto> GetProfileAsync(Guid userId)
         {
-            return await GetUserDtoAsync(userId);
+
+            try
+            {
+                var userDto = await GetUserDtoAsync(userId);
+                return userDto;
+            }
+            catch (NotFoundException ex)
+            {
+                throw new ValidationException($"Profile not found for user ID: {userId}");
+            }
+            catch (Exception ex)
+            {
+                throw new ApplicationException($"Error retrieving user profile: {ex.Message}");
+            }
         }
 
         public async Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileDto dto)

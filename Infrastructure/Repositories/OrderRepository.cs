@@ -30,6 +30,15 @@ namespace Infrastructure.Repositories
                 .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber);
         }
 
+        public async Task<OrderItem?> GetOrderItemByIdAsync(Guid orderItemId)
+        {
+            return await _context.OrderItems
+                .Include(oi => oi.Product)
+                .Include(oi => oi.Order)
+                    .ThenInclude(o => o.Customer)
+                .FirstOrDefaultAsync(oi => oi.Id == orderItemId && !oi.IsDeleted);
+        }
+
         public async Task<IEnumerable<Order>> GetByCustomerIdAsync(Guid customerId)
         {
             return await _dbSet

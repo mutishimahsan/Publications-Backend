@@ -29,15 +29,16 @@ namespace Infrastructure.Services
         public async Task<string> GenerateTokenAsync(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_jwtSettings.Secret);
+            var key = Encoding.UTF8.GetBytes(_jwtSettings.Secret);
 
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email!),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("userId", user.Id.ToString()),
-                new Claim("userType", user.UserType.ToString())
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // Used by [Authorize]
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()), // Standard JWT subject
+            new Claim("userId", user.Id.ToString()), // Custom claim for backward compatibility
+            new Claim(ClaimTypes.Email, user.Email!),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("userType", user.UserType.ToString())
             };
 
             // Add user roles

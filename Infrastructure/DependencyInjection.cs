@@ -1,5 +1,6 @@
 ﻿using Application.Common;
 using Application.Interfaces;
+using Application.Services;
 using Domain.Common;
 using Domain.Entities;
 using Infrastructure.Data;
@@ -7,6 +8,7 @@ using Infrastructure.Data.Interceptors;
 using Infrastructure.Repositories;
 using Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -16,7 +18,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Infrastructure
@@ -73,24 +77,97 @@ namespace Infrastructure
                 options.User.RequireUniqueEmail = true;
             });
 
+            services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
+
             // JWT Authentication
             var jwtSettings = configuration.GetSection("JwtSettings");
+
+            // Validate JWT configuration exists
+            var secret = jwtSettings["Secret"];
+            if (string.IsNullOrEmpty(secret))
+            {
+                throw new InvalidOperationException("JWT Secret is not configured. Please add 'JwtSettings:Secret' to appsettings.json");
+            }
+
+            if (secret.Length < 32)
+            {
+                throw new InvalidOperationException($"JWT Secret must be at least 32 characters long. Current length: {secret.Length}");
+            }
+
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
             })
             .AddJwtBearer(options =>
             {
+                options.RequireHttpsMetadata = false;
+                options.SaveToken = true;
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtSettings["Issuer"],
-                    ValidAudience = jwtSettings["Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]))
+                    ValidIssuer = configuration["JwtSettings:Issuer"],
+                    ValidAudience = configuration["JwtSettings:Audience"],
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(configuration["JwtSettings:Secret"]!)),
+                    RoleClaimType = ClaimTypes.Role,
+                    NameClaimType = ClaimTypes.NameIdentifier,
+                    ClockSkew = TimeSpan.FromMinutes(5)
+                };
+
+                // Support multiple ways to send the token
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        // 1. Standard Authorization header
+                        var token = context.Request.Headers["Authorization"].FirstOrDefault();
+
+                        // 2. Custom header for Scalar compatibility
+                        if (string.IsNullOrEmpty(token))
+                        {
+                            token = context.Request.Headers["X-Access-Token"].FirstOrDefault();
+                        }
+
+                        // 3. Query string for easy testing
+                        if (string.IsNullOrEmpty(token))
+                        {
+                            token = context.Request.Query["access_token"].FirstOrDefault();
+                        }
+
+                        if (!string.IsNullOrEmpty(token))
+                        {
+                            // Clean the token
+                            if (token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                token = token.Substring(7);
+                            }
+
+                            // Remove quotes
+                            token = token.Trim('"');
+
+                            context.Token = token;
+                        }
+
+                        return Task.CompletedTask;
+                    },
+
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+                        var result = JsonSerializer.Serialize(new
+                        {
+                            message = "Unauthorized: Invalid or expired token",
+                            hint = "Use: Authorization: Bearer {token} OR X-Access-Token: {token}"
+                        });
+                        return context.Response.WriteAsync(result);
+                    }
                 };
             });
 
@@ -136,12 +213,15 @@ namespace Infrastructure
             services.AddScoped<IAuthorRepository, AuthorRepository>();
             services.AddScoped<IBlogRepository, BlogRepository>();
             services.AddScoped<IAddressRepository, AddressRepository>();
+            services.AddScoped<IBlogService, BlogService>();
             //services.AddScoped<IBlogCategoryRepository, BlogCategoryRepository>();
 
             // Services
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IFileStorageService, FileStorageService>();
             services.AddScoped<SeedService>();
+
+            services.AddScoped<ICategoryService, CategoryService>();
 
             services.AddScoped<AuditInterceptor>();
             services.AddScoped<IAuditService, AuditService>();

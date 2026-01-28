@@ -25,6 +25,9 @@ namespace Infrastructure.Repositories
             Invoices = new InvoiceRepository(_context);
             Authors = new AuthorRepository(_context);
             Blogs = new BlogRepository(_context);
+            BlogCategories = new BlogCategoryRepository(_context);
+            BlogTags = new BlogTagRepository(_context);
+            BlogComments = new BlogCommentRepository(_context);
             Addresses = new AddressRepository(_context);
             DigitalAccesses = new DigitalAccessRepository(_context);
         }
@@ -38,6 +41,9 @@ namespace Infrastructure.Repositories
         public IInvoiceRepository Invoices { get; }
         public IAuthorRepository Authors { get; }
         public IBlogRepository Blogs { get; }
+        public IBlogCategoryRepository BlogCategories { get; }
+        public IBlogTagRepository BlogTags { get; }
+        public IBlogCommentRepository BlogComments { get; }
         public IAddressRepository Addresses { get; }
         public IDigitalAccessRepository DigitalAccesses { get; }
 

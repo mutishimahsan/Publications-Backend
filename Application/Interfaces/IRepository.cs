@@ -18,5 +18,6 @@ namespace Application.Interfaces
         Task<bool> ExistsAsync(Guid id);
         Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null);
         Task<IEnumerable<T>> GetPagedAsync(int pageNumber, int pageSize, Expression<Func<T, bool>>? predicate = null);
+
     }
 }

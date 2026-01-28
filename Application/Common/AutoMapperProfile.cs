@@ -60,6 +60,81 @@ namespace Application.Common
             // Address mappings
             CreateMap<Address, AddressDto>();
             CreateMap<CreateAddressDto, Address>();
+
+            // Blog mappings
+            CreateMap<Blog, BlogDto>()
+                .ForMember(dest => dest.Categories, opt =>
+                    opt.MapFrom(src => src.BlogCategories))
+                .ReverseMap();
+
+            CreateMap<CreateBlogDto, Blog>()
+                .ForMember(dest => dest.BlogCategories, opt => opt.Ignore())
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Slug, opt => opt.Ignore())
+                .ForMember(dest => dest.ViewCount, opt => opt.Ignore())
+                .ForMember(dest => dest.PublishedDate, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+
+            CreateMap<UpdateBlogDto, Blog>()
+                .ForMember(dest => dest.BlogCategories, opt => opt.Ignore())
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Slug, opt => opt.Ignore())
+                .ForMember(dest => dest.ViewCount, opt => opt.Ignore())
+                .ForMember(dest => dest.PublishedDate, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+
+            // BlogCategory mappings
+            CreateMap<BlogCategory, BlogCategoryDto>()
+                .ForMember(dest => dest.BlogCount, opt =>
+                    opt.MapFrom(src => src.Blogs.Count(b => !b.IsDeleted && b.IsPublished)))
+                .ReverseMap();
+
+            CreateMap<CreateBlogCategoryDto, BlogCategory>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Slug, opt => opt.Ignore())
+                .ForMember(dest => dest.Blogs, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+
+            CreateMap<UpdateBlogCategoryDto, BlogCategory>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Slug, opt => opt.Ignore())
+                .ForMember(dest => dest.Blogs, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+
+            // BlogTag mappings
+            CreateMap<BlogTag, BlogTagDto>()
+                .ReverseMap();
+
+            CreateMap<CreateBlogTagDto, BlogTag>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Slug, opt => opt.Ignore())
+                .ForMember(dest => dest.Blogs, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+
+            // BlogComment mappings
+            CreateMap<BlogComment, BlogCommentDto>()
+                .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+                .ReverseMap();
+
+            CreateMap<CreateBlogCommentDto, BlogComment>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
+                .ForMember(dest => dest.Blog, opt => opt.Ignore())
+                .ForMember(dest => dest.ParentComment, opt => opt.Ignore())
+                .ForMember(dest => dest.Replies, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
         }
     }
 }

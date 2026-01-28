@@ -62,4 +62,13 @@ namespace Application.DTOs
         public Dictionary<string, int> DownloadsByProduct { get; set; } = new();
         public Dictionary<string, int> DownloadsByCustomer { get; set; } = new();
     }
+
+    public class FileDownloadResult
+    {
+        public Stream FileStream { get; set; } = null!;
+        public string FileName { get; set; } = string.Empty;
+        public string MimeType { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public DigitalAccessDto DigitalAccess { get; set; } = null!;
+    }
 }

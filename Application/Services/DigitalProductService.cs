@@ -4,10 +4,12 @@ using AutoMapper;
 using Domain.Common;
 using Domain.Entities;
 using Domain.Enums;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,8 +20,6 @@ namespace Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileStorageService;
-        private readonly IProductRepository _productRepository;
-        private readonly IOrderRepository _orderRepository;
         private readonly IMapper _mapper;
         private readonly ILogger<DigitalProductService> _logger;
         private readonly IConfiguration _configuration;
@@ -27,16 +27,12 @@ namespace Application.Services
         public DigitalProductService(
             IUnitOfWork unitOfWork,
             IFileStorageService fileStorageService,
-            IProductRepository productRepository,
-            IOrderRepository orderRepository,
             IMapper mapper,
             ILogger<DigitalProductService> logger,
             IConfiguration configuration)
         {
             _unitOfWork = unitOfWork;
             _fileStorageService = fileStorageService;
-            _productRepository = productRepository;
-            _orderRepository = orderRepository;
             _mapper = mapper;
             _logger = logger;
             _configuration = configuration;
@@ -44,14 +40,14 @@ namespace Application.Services
 
         public async Task<string> UploadDigitalFileAsync(UploadDigitalProductDto dto)
         {
-            var product = await _productRepository.GetByIdAsync(dto.ProductId);
+            var product = await _unitOfWork.Products.GetByIdAsync(dto.ProductId);
             if (product == null)
             {
                 throw new NotFoundException("Product", dto.ProductId);
             }
 
             // Validate product format supports digital
-            if (product.Format != ProductFormat.Digital && product.Format != ProductFormat.Both)
+            if (product.Format != ProductFormat.Digital && product.Format != ProductFormat.Bundle)
             {
                 throw new ValidationException("Product is not available in digital format.");
             }
@@ -72,7 +68,7 @@ namespace Application.Services
             if (dto.DownloadExpiryDays.HasValue)
                 product.DownloadExpiryDays = dto.DownloadExpiryDays.Value;
 
-            await _productRepository.UpdateAsync(product);
+            await _unitOfWork.Products.UpdateAsync(product);
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("Digital file uploaded for product {ProductId}: {FilePath}",
@@ -83,7 +79,7 @@ namespace Application.Services
 
         public async Task<bool> DeleteDigitalFileAsync(Guid productId)
         {
-            var product = await _productRepository.GetByIdAsync(productId);
+            var product = await _unitOfWork.Products.GetByIdAsync(productId);
             if (product == null || string.IsNullOrEmpty(product.DigitalFilePath))
             {
                 return false;
@@ -97,8 +93,10 @@ namespace Application.Services
             product.DigitalFileUrl = null;
             product.DigitalFileSize = null;
             product.DigitalFileMimeType = null;
+            product.MaxDownloads = null;
+            product.DownloadExpiryDays = null;
 
-            await _productRepository.UpdateAsync(product);
+            await _unitOfWork.Products.UpdateAsync(product);
             await _unitOfWork.SaveChangesAsync();
 
             _logger.LogInformation("Digital file deleted for product {ProductId}", productId);
@@ -108,14 +106,14 @@ namespace Application.Services
         public async Task<DigitalDownloadDto> GenerateDownloadLinkAsync(Guid orderItemId, Guid customerId)
         {
             // Get order item and validate
-            var orderItem = await _orderRepository.GetOrderItemByIdAsync(orderItemId);
+            var orderItem = await GetOrderItemByIdAsync(orderItemId);
             if (orderItem == null)
             {
                 throw new NotFoundException("Order item", orderItemId);
             }
 
             // Check if product is digital
-            if (orderItem.Product.Format == ProductFormat.Print)
+            if (orderItem.Product.Format != ProductFormat.Digital && orderItem.Product.Format != ProductFormat.Bundle)
             {
                 throw new ValidationException("Product is not available in digital format.");
             }
@@ -128,10 +126,18 @@ namespace Application.Services
             }
 
             // Get or create digital access
-            var digitalAccess = await _unitOfWork.DigitalAccesses.GetValidAccessAsync(orderItemId, customerId);
+            var digitalAccess = await GetValidDigitalAccessAsync(orderItemId, customerId);
             if (digitalAccess == null)
             {
-                digitalAccess = await GrantDigitalAccessAsync(orderItemId);
+                // GrantDigitalAccessAsync returns DTO, but we need the entity
+                var accessDto = await GrantDigitalAccessAsync(orderItemId);
+                // Get the entity from the database
+                digitalAccess = await _unitOfWork.DigitalAccesses.GetByIdAsync(accessDto.Id);
+
+                if (digitalAccess == null)
+                {
+                    throw new Exception("Failed to create digital access");
+                }
             }
 
             // Generate download token if needed
@@ -176,7 +182,7 @@ namespace Application.Services
 
         public async Task<DigitalAccessDto> GetDigitalAccessByOrderItemAsync(Guid orderItemId)
         {
-            var digitalAccess = await _unitOfWork.DigitalAccesses.GetByOrderItemIdAsync(orderItemId);
+            var digitalAccess = await GetDigitalAccessByOrderItemInternalAsync(orderItemId);
             if (digitalAccess == null)
             {
                 throw new NotFoundException("Digital access for order item", orderItemId);
@@ -187,7 +193,7 @@ namespace Application.Services
 
         public async Task<IEnumerable<DigitalAccessDto>> GetCustomerDigitalAccessAsync(Guid customerId)
         {
-            var accessList = await _unitOfWork.DigitalAccesses.GetActiveAccessByCustomerAsync(customerId);
+            var accessList = await GetActiveDigitalAccessByCustomerAsync(customerId);
             var dtos = new List<DigitalAccessDto>();
 
             foreach (var access in accessList)
@@ -200,14 +206,14 @@ namespace Application.Services
 
         public async Task<DigitalAccessDto> GrantDigitalAccessAsync(Guid orderItemId)
         {
-            var orderItem = await _orderRepository.GetOrderItemByIdAsync(orderItemId);
+            var orderItem = await GetOrderItemByIdAsync(orderItemId);
             if (orderItem == null)
             {
                 throw new NotFoundException("Order item", orderItemId);
             }
 
             // Check if access already exists
-            var existingAccess = await _unitOfWork.DigitalAccesses.GetByOrderItemIdAsync(orderItemId);
+            var existingAccess = await GetDigitalAccessByOrderItemInternalAsync(orderItemId);
             if (existingAccess != null)
             {
                 return await MapDigitalAccessToDto(existingAccess);
@@ -229,14 +235,17 @@ namespace Application.Services
             // Create digital access
             var digitalAccess = new DigitalAccess
             {
+                Id = Guid.NewGuid(),
                 OrderItemId = orderItemId,
                 ProductId = orderItem.ProductId,
                 CustomerId = orderItem.Order.CustomerId,
                 AccessGrantedAt = DateTime.UtcNow,
                 AccessExpiresAt = expiryDate,
                 MaxDownloads = orderItem.Product.MaxDownloads ?? 3,
+                DownloadCount = 0,
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             // Generate initial token
@@ -275,6 +284,7 @@ namespace Application.Services
                 digitalAccess.LastDownloadedAt = null;
             }
 
+            digitalAccess.UpdatedAt = DateTime.UtcNow;
             await _unitOfWork.DigitalAccesses.UpdateAsync(digitalAccess);
             await _unitOfWork.SaveChangesAsync();
 
@@ -292,6 +302,7 @@ namespace Application.Services
             digitalAccess.IsActive = false;
             digitalAccess.CurrentToken = null;
             digitalAccess.TokenExpiresAt = null;
+            digitalAccess.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.DigitalAccesses.UpdateAsync(digitalAccess);
             await _unitOfWork.SaveChangesAsync();
@@ -302,7 +313,7 @@ namespace Application.Services
 
         public async Task<FileDownloadResult> ProcessDownloadAsync(string token)
         {
-            var digitalAccess = await _unitOfWork.DigitalAccesses.GetByTokenAsync(token);
+            var digitalAccess = await GetDigitalAccessByTokenAsync(token);
             if (digitalAccess == null)
             {
                 throw new NotFoundException("Download token", token);
@@ -336,6 +347,7 @@ namespace Application.Services
 
             // Update download count
             digitalAccess.IncrementDownloadCount();
+            digitalAccess.UpdatedAt = DateTime.UtcNow;
             await _unitOfWork.DigitalAccesses.UpdateAsync(digitalAccess);
             await _unitOfWork.SaveChangesAsync();
 
@@ -354,7 +366,7 @@ namespace Application.Services
 
         public async Task<bool> ValidateDownloadTokenAsync(string token)
         {
-            var digitalAccess = await _unitOfWork.DigitalAccesses.GetByTokenAsync(token);
+            var digitalAccess = await GetDigitalAccessByTokenAsync(token);
             if (digitalAccess == null)
             {
                 return false;
@@ -367,7 +379,7 @@ namespace Application.Services
 
         public async Task<IEnumerable<DigitalAccessDto>> GetExpiredAccessAsync()
         {
-            var expiredAccess = await _unitOfWork.DigitalAccesses.GetExpiredAccessAsync();
+            var expiredAccess = await GetExpiredDigitalAccessAsync();
             var dtos = new List<DigitalAccessDto>();
 
             foreach (var access in expiredAccess)
@@ -380,7 +392,7 @@ namespace Application.Services
 
         public async Task<bool> CleanupExpiredAccessAsync()
         {
-            var expiredAccess = await _unitOfWork.DigitalAccesses.GetExpiredAccessAsync();
+            var expiredAccess = await GetExpiredDigitalAccessAsync();
             var count = 0;
 
             foreach (var access in expiredAccess)
@@ -388,6 +400,7 @@ namespace Application.Services
                 access.IsActive = false;
                 access.CurrentToken = null;
                 access.TokenExpiresAt = null;
+                access.UpdatedAt = DateTime.UtcNow;
                 count++;
             }
 
@@ -447,6 +460,67 @@ namespace Application.Services
             return stats;
         }
 
+        #region Helper Methods
+
+        private async Task<OrderItem?> GetOrderItemByIdAsync(Guid orderItemId)
+        {
+            // First try to get all orders and find the order item
+            var orders = await _unitOfWork.Orders.GetAllAsync();
+
+            foreach (var order in orders)
+            {
+                // Assuming Order has OrderItems collection
+                var orderItem = order.OrderItems?.FirstOrDefault(oi => oi.Id == orderItemId && !oi.IsDeleted);
+                if (orderItem != null)
+                {
+                    // Load related data if needed
+                    if (orderItem.Product == null && _unitOfWork.Products is IRepository<Product> productRepo)
+                    {
+                        orderItem.Product = await productRepo.GetByIdAsync(orderItem.ProductId);
+                    }
+                    return orderItem;
+                }
+            }
+
+            return null;
+        }
+
+        private async Task<DigitalAccess?> GetValidDigitalAccessAsync(Guid orderItemId, Guid customerId)
+        {
+            var access = await GetDigitalAccessByOrderItemInternalAsync(orderItemId);
+            if (access == null) return null;
+
+            // Check if access belongs to customer and is valid
+            if (access.CustomerId != customerId || !access.IsActive || access.IsExpired || !access.HasDownloadsRemaining)
+                return null;
+
+            return access;
+        }
+
+        private async Task<DigitalAccess?> GetDigitalAccessByOrderItemInternalAsync(Guid orderItemId)
+        {
+            var allAccess = await _unitOfWork.DigitalAccesses.GetAllAsync();
+            return allAccess.FirstOrDefault(a => a.OrderItemId == orderItemId && a.IsActive);
+        }
+
+        private async Task<IEnumerable<DigitalAccess>> GetActiveDigitalAccessByCustomerAsync(Guid customerId)
+        {
+            var allAccess = await _unitOfWork.DigitalAccesses.GetAllAsync();
+            return allAccess.Where(a => a.CustomerId == customerId && a.IsActive && !a.IsExpired);
+        }
+
+        private async Task<DigitalAccess?> GetDigitalAccessByTokenAsync(string token)
+        {
+            var allAccess = await _unitOfWork.DigitalAccesses.GetAllAsync();
+            return allAccess.FirstOrDefault(a => a.CurrentToken == token);
+        }
+
+        private async Task<IEnumerable<DigitalAccess>> GetExpiredDigitalAccessAsync()
+        {
+            var allAccess = await _unitOfWork.DigitalAccesses.GetAllAsync();
+            return allAccess.Where(a => a.IsExpired || !a.HasDownloadsRemaining);
+        }
+
         private async Task<DigitalAccessDto> MapDigitalAccessToDto(DigitalAccess digitalAccess)
         {
             var dto = new DigitalAccessDto
@@ -484,5 +558,7 @@ namespace Application.Services
 
             return Path.GetFileName(filePath);
         }
+
+        #endregion
     }
 }
