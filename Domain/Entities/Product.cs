@@ -49,5 +49,6 @@
 
             public virtual ICollection<ProductAuthor> ProductAuthors { get; set; } = new List<ProductAuthor>();
             public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
-        }
+        public int MinStockThreshold { get; set; }
+    }
     }

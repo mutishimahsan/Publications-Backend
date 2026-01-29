@@ -22,7 +22,8 @@ namespace Domain.Enums
         Paid = 2,
         PartiallyRefunded = 3,
         FullyRefunded = 4,
-        Failed = 5
+        Failed = 5,
+        Completed = 6
     }
 
     public enum FulfillmentStatus

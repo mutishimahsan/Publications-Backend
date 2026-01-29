@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Infrastructure.Data
@@ -36,6 +37,15 @@ namespace Infrastructure.Data
         public DbSet<BlogCategory> BlogCategories { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<DigitalAccess> DigitalAccesses { get; set; } = null!;
+        public async Task<int> RemoveOldAuditLogsAsync(DateTime cutoffDate, CancellationToken cancellationToken = default)
+        {
+            var oldLogs = await AuditLogs
+                .Where(al => al.Timestamp < cutoffDate)
+                .ToListAsync(cancellationToken);
+
+            AuditLogs.RemoveRange(oldLogs);
+            return await SaveChangesAsync(cancellationToken);
+        }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -390,18 +400,5 @@ namespace Infrastructure.Data
                 optionsBuilder.UseSqlServer("Server=.\\SQLEXPRESS; Database=MENTISERA_Publications; Trusted_Connection=true; TrustServerCertificate=true; MultipleActiveResultSets=true;");
             }
         }
-    }
-
-    public class AuditLog : BaseEntity
-    {
-        public string TableName { get; set; } = string.Empty;
-        public Guid RecordId { get; set; }
-        public string Action { get; set; } = string.Empty; // Create, Update, Delete
-        public Guid UserId { get; set; }
-        public string? OldValues { get; set; }
-        public string? NewValues { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-        public string? IpAddress { get; set; }
-        public string? UserAgent { get; set; }
     }
 }

@@ -10,13 +10,15 @@ namespace Infrastructure.Repositories
     public class UnitOfWork : IUnitOfWork
     {
         private readonly AppDbContext _context;
+        private readonly IEmailService _emailService;
         private IDbContextTransaction? _currentTransaction;
 
-        public UnitOfWork(AppDbContext context)
+        public UnitOfWork(AppDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
 
-            // Assign repositories - concrete classes that implement interfaces
+            // Assign repositories
             Users = new UserRepository(_context);
             Products = new ProductRepository(_context);
             Categories = new CategoryRepository(_context);
@@ -30,6 +32,7 @@ namespace Infrastructure.Repositories
             BlogComments = new BlogCommentRepository(_context);
             Addresses = new AddressRepository(_context);
             DigitalAccesses = new DigitalAccessRepository(_context);
+            EmailService = _emailService; // Assign email service
         }
 
         // Interface properties
@@ -46,6 +49,7 @@ namespace Infrastructure.Repositories
         public IBlogCommentRepository BlogComments { get; }
         public IAddressRepository Addresses { get; }
         public IDigitalAccessRepository DigitalAccesses { get; }
+        public IEmailService EmailService { get; } // Add this
 
         public async Task<int> SaveChangesAsync()
         {

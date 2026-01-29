@@ -228,8 +228,9 @@ namespace Infrastructure
 
             services.AddScoped<IDigitalAccessRepository, DigitalAccessRepository>();
 
-            // Email Service (if implemented)
-            //services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IAdminService, AdminService>();
+            services.AddScoped<IEmailService, EmailService>();
+            services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
             // Audit Service (if implemented)
             // services.AddScoped<IAuditService, AuditService>();

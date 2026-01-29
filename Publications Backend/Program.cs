@@ -1,6 +1,7 @@
 
 using Application.Services;
 using Infrastructure.Data;
+using Infrastructure.Middleware;
 using Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -49,6 +50,8 @@ namespace Publications_Backend
             
 
             app.UseHttpsRedirection();
+
+            app.UseMiddleware<AuditLogMiddleware>();
 
             app.UseRouting();
 

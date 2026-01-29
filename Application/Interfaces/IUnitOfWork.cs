@@ -22,6 +22,7 @@ namespace Application.Interfaces
         IBlogCommentRepository BlogComments { get; }
         IAddressRepository Addresses { get; }
         IDigitalAccessRepository DigitalAccesses { get; }
+        IEmailService EmailService { get; }
 
         Task<int> SaveChangesAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
