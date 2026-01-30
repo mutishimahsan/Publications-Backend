@@ -21,7 +21,11 @@ namespace Application.DTOs
         public int ViewCount { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? AuthorName { get; set; }
+        public int CommentCount { get; set; }
         public List<BlogCategoryDto> Categories { get; set; } = new();
+        public List<BlogTagDto> Tags { get; set; } = new();
     }
 
     public class CreateBlogDto
@@ -95,14 +99,17 @@ namespace Application.DTOs
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Slug { get; set; } = string.Empty;
+        public int BlogCount { get; set; }
     }
     public class CreateBlogTagDto
     {
+        [Required]
         public string Name { get; set; } = string.Empty;
     }
 
     public class UpdateBlogTagDto
     {
+        [Required]
         public string Name { get; set; } = string.Empty;
     }
 }

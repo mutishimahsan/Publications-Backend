@@ -10,6 +10,7 @@ using System.Xml;
 using Newtonsoft.Json;
 using Formatting = Newtonsoft.Json.Formatting;
 using System.Security.Claims;
+using Domain.Entities;
 
 namespace Infrastructure.Data.Interceptors
 {

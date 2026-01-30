@@ -124,9 +124,9 @@ namespace Application.Services
                                     u.CreatedAt <= endDate),
                 ActiveUsers = await _context.Users
                     .CountAsync(u => !u.IsDeleted &&
-                                    u.LastLoginAt != null &&
-                                    ((DateTime)u.LastLoginAt) >= startDate &&
-                                    ((DateTime)u.LastLoginAt) <= endDate)
+                                    u.LastLogin != null &&
+                                    ((DateTime)u.LastLogin) >= startDate &&
+                                    ((DateTime)u.LastLogin) <= endDate)
             };
 
             // Get recent logins from audit logs

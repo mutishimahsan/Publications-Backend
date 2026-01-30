@@ -36,6 +36,9 @@ namespace Infrastructure
                 options.AddInterceptors(sp.GetRequiredService<AuditInterceptor>());
             });
 
+            services.AddScoped<IApplicationDbContext>(provider =>
+    (IApplicationDbContext)provider.GetRequiredService<AppDbContext>());
+
             // Distributed Cache (for cart storage)
             services.AddDistributedMemoryCache(); // For development
             // For production, use Redis:
@@ -214,7 +217,10 @@ namespace Infrastructure
             services.AddScoped<IBlogRepository, BlogRepository>();
             services.AddScoped<IAddressRepository, AddressRepository>();
             services.AddScoped<IBlogService, BlogService>();
-            //services.AddScoped<IBlogCategoryRepository, BlogCategoryRepository>();
+            services.AddScoped<IBlogTagService, BlogTagService>();
+            services.AddScoped<IBlogCategoryRepository, BlogCategoryRepository>();
+            services.AddScoped<IBlogCommentRepository, BlogCommentRepository>();
+            services.AddScoped<IBlogTagRepository, BlogTagRepository>();
 
             // Services
             services.AddScoped<IJwtService, JwtService>();

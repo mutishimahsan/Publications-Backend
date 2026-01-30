@@ -1,6 +1,7 @@
 ﻿using Application.DTOs;
 using AutoMapper;
 using Domain.Entities;
+using Domain.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -61,36 +62,57 @@ namespace Application.Common
             CreateMap<Address, AddressDto>();
             CreateMap<CreateAddressDto, Address>();
 
-            // Blog mappings
+            #region Blog Mappings
+
+            // Blog mappings - FIXED: Remove ReverseMap and add specific mappings
             CreateMap<Blog, BlogDto>()
                 .ForMember(dest => dest.Categories, opt =>
                     opt.MapFrom(src => src.BlogCategories))
-                .ReverseMap();
+                .ForMember(dest => dest.Tags, opt =>
+                    opt.MapFrom(src => src.BlogTags))
+                .ForMember(dest => dest.IsPublished, opt =>
+                    opt.MapFrom(src => src.IsPublished && src.Status == BlogStatus.Published))
+                .ForMember(dest => dest.Status, opt =>
+                    opt.MapFrom(src => src.Status.ToString()))
+                .ForMember(dest => dest.AuthorName, opt =>
+                    opt.MapFrom(src => src.Author != null ? src.Author.FullName : null))
+                .ForMember(dest => dest.CommentCount, opt =>
+                    opt.MapFrom(src => src.Comments.Count(c => !c.IsDeleted && c.Status == CommentStatus.Approved)));
 
             CreateMap<CreateBlogDto, Blog>()
                 .ForMember(dest => dest.BlogCategories, opt => opt.Ignore())
+                .ForMember(dest => dest.BlogTags, opt => opt.Ignore())
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.Slug, opt => opt.Ignore())
                 .ForMember(dest => dest.ViewCount, opt => opt.Ignore())
                 .ForMember(dest => dest.PublishedDate, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
+                .ForMember(dest => dest.AuthorId, opt => opt.Ignore())
+                .ForMember(dest => dest.Author, opt => opt.Ignore())
+                .ForMember(dest => dest.Comments, opt => opt.Ignore());
 
             CreateMap<UpdateBlogDto, Blog>()
                 .ForMember(dest => dest.BlogCategories, opt => opt.Ignore())
+                .ForMember(dest => dest.BlogTags, opt => opt.Ignore())
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.Slug, opt => opt.Ignore())
                 .ForMember(dest => dest.ViewCount, opt => opt.Ignore())
                 .ForMember(dest => dest.PublishedDate, opt => opt.Ignore())
+                .ForMember(dest => dest.Status, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
+                .ForMember(dest => dest.AuthorId, opt => opt.Ignore())
+                .ForMember(dest => dest.Author, opt => opt.Ignore())
+                .ForMember(dest => dest.Comments, opt => opt.Ignore());
 
             // BlogCategory mappings
             CreateMap<BlogCategory, BlogCategoryDto>()
                 .ForMember(dest => dest.BlogCount, opt =>
-                    opt.MapFrom(src => src.Blogs.Count(b => !b.IsDeleted && b.IsPublished)))
+                    opt.MapFrom(src => src.Blogs.Count(b => !b.IsDeleted && b.IsPublished && b.Status == BlogStatus.Published)))
                 .ReverseMap();
 
             CreateMap<CreateBlogCategoryDto, BlogCategory>()
@@ -109,11 +131,21 @@ namespace Application.Common
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
 
-            // BlogTag mappings
+            // BlogTag mappings - FIXED: Add BlogCount property mapping
             CreateMap<BlogTag, BlogTagDto>()
+                .ForMember(dest => dest.BlogCount, opt =>
+                    opt.MapFrom(src => src.Blogs.Count(b => !b.IsDeleted && b.IsPublished && b.Status == BlogStatus.Published)))
                 .ReverseMap();
 
             CreateMap<CreateBlogTagDto, BlogTag>()
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.Slug, opt => opt.Ignore())
+                .ForMember(dest => dest.Blogs, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+
+            CreateMap<UpdateBlogTagDto, BlogTag>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.Slug, opt => opt.Ignore())
                 .ForMember(dest => dest.Blogs, opt => opt.Ignore())
@@ -134,7 +166,10 @@ namespace Application.Common
                 .ForMember(dest => dest.Replies, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore());
+                .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
+                .ForMember(dest => dest.IsApproved, opt => opt.Ignore());
+
+            #endregion
         }
     }
 }

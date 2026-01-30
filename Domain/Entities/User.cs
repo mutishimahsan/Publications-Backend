@@ -25,6 +25,6 @@ namespace Domain.Entities
         public bool IsDeleted { get; set; }
         public string UpdatedBy { get; set; } = "SYSTEM";
         public string CreatedBy { get; set; } = "SYSTEM";
-        public DateTime? LastLoginAt { get; set; }
+        //public DateTime? LastLoginAt { get; set; }
     }
 }

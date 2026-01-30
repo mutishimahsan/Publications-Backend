@@ -8,7 +8,7 @@ namespace Publications_Backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;

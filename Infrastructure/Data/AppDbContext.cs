@@ -35,8 +35,11 @@ namespace Infrastructure.Data
         public DbSet<Address> Addresses { get; set; } = null!;
         public DbSet<Blog> Blogs { get; set; } = null!;
         public DbSet<BlogCategory> BlogCategories { get; set; } = null!;
+        public DbSet<BlogComment> BlogComments { get; set; } = null!;
+        public DbSet<BlogTag> BlogTags { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<DigitalAccess> DigitalAccesses { get; set; } = null!;
+
         public async Task<int> RemoveOldAuditLogsAsync(DateTime cutoffDate, CancellationToken cancellationToken = default)
         {
             var oldLogs = await AuditLogs
